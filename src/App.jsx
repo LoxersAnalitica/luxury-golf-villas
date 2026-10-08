@@ -67,6 +67,11 @@ const Ico = {
  * ------------------------------------------------------------------ */
 const DOSSIER = '/docs/luxury-golf-dossier.pdf'
 const PLANOS = '/docs/luxury-golf-planos.pdf'
+const MEMORIA = '/docs/luxury-golf-memoria-calidades.pdf'
+
+const MAPS_Q = encodeURIComponent('La Cala Golf, Mijas Costa, Málaga')
+const MAPS_EMBED = `https://www.google.com/maps?q=${MAPS_Q}&z=13&output=embed`
+const MAPS_LINK = `https://www.google.com/maps/search/?api=1&query=${MAPS_Q}`
 const UNLOCK_KEY = 'lg_unlocked_v1'
 
 const store = {
@@ -280,6 +285,9 @@ function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
                 </a>
                 <a href={PLANOS} download>
                   <Ico.doc /> {t.wizard.done.d2} <Ico.dl className="arr" />
+                </a>
+                <a href={MEMORIA} download>
+                  <Ico.doc /> {t.wizard.done.d3} <Ico.dl className="arr" />
                 </a>
               </div>
               <button className="wiz__back" style={{ marginTop: '2rem' }} onClick={onClose}>
@@ -656,22 +664,51 @@ export default function App() {
 
       {/* ---------------- Ubicación ---------------- */}
       <section className="sec light" id="ubicacion">
-        <div className="wrap split">
-          <R>
-            <span className="eyebrow">{t.location.eyebrow}</span>
-            <h2 className="h2" style={{ marginTop: '1.4rem' }}>{t.location.title}</h2>
-            <p className="lead" style={{ marginTop: '1.5rem' }}>{t.location.text}</p>
+        <div className="wrap">
+          <div className="split">
+            <R>
+              <span className="eyebrow">{t.location.eyebrow}</span>
+              <h2 className="h2" style={{ marginTop: '1.4rem' }}>{t.location.title}</h2>
+              <p className="lead" style={{ marginTop: '1.5rem' }}>{t.location.text}</p>
+            </R>
+            <R d={120}>
+              <div className="loc__groups" style={{ marginTop: 0 }}>
+                {t.location.groups.map((g) => (
+                  <div className="lgroup" key={g.t}>
+                    <b>{g.t}</b>
+                    {g.items.map(([k, v]) => (
+                      <div key={k}><span>{k}</span><span>{v}</span></div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </R>
+          </div>
+
+          <R className="golf" d={80}>
+            <span className="eyebrow">{t.location.golf.eyebrow}</span>
+            <p className="golf__t">{t.location.golf.t}</p>
+            <p className="golf__d">{t.location.golf.d}</p>
           </R>
-          <R d={120}>
-            <div className="loc__groups" style={{ marginTop: 0 }}>
-              {t.location.groups.map((g) => (
-                <div className="lgroup" key={g.t}>
-                  <b>{g.t}</b>
-                  {g.items.map(([k, v]) => (
-                    <div key={k}><span>{k}</span><span>{v}</span></div>
-                  ))}
-                </div>
-              ))}
+
+          <R className="map" d={100}>
+            <div className="map__head">
+              <div>
+                <span className="eyebrow">{t.location.map.t}</span>
+                <p>{t.location.map.d}</p>
+              </div>
+              <a className="link-u" href={MAPS_LINK} target="_blank" rel="noreferrer">
+                {t.location.map.cta}<Ico.arrow />
+              </a>
+            </div>
+            <div className="map__frame">
+              <iframe
+                src={MAPS_EMBED}
+                title={t.location.map.t}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
             </div>
           </R>
         </div>
