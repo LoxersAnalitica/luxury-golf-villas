@@ -402,7 +402,7 @@ function Lightbox({ items, i, onClose, onMove }) {
     <div className="lightbox" onClick={onClose} role="dialog" aria-modal="true">
       <figure onClick={(e) => e.stopPropagation()}>
         <img src={items[i].src} alt={items[i].c} />
-        <figcaption>{items[i].c}</figcaption>
+        <figcaption>{items[i].c}<i>{i + 1} / {items.length}</i></figcaption>
       </figure>
       <button className="lb-btn lb-prev" onClick={(e) => { e.stopPropagation(); onMove(-1) }} aria-label="←"><Ico.arrowL /></button>
       <button className="lb-btn lb-next" onClick={(e) => { e.stopPropagation(); onMove(1) }} aria-label="→"><Ico.arrow /></button>
@@ -418,7 +418,7 @@ export default function App() {
   const [lang, setLang] = useState(() => (typeof window === 'undefined' ? 'es' : detectLang()))
   const [wizard, setWizard] = useState(null)      // null | { interest }
   const [unlocked, setUnlocked] = useState(() => store.get(UNLOCK_KEY) === '1')
-  const [lb, setLb] = useState(-1)
+  const [lb, setLb] = useState(null)   // { items, i }
   const [stuck, setStuck] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
   const videoRef = useVideoInView()
@@ -446,7 +446,10 @@ export default function App() {
   const onDone = useCallback(() => { setUnlocked(true); store.set(UNLOCK_KEY, '1') }, [])
 
   const gal = t.gallery.items
-  const moveLb = useCallback((d) => setLb((i) => (i + d + gal.length) % gal.length), [gal.length])
+  const moveLb = useCallback(
+    (d) => setLb((s) => (s ? { ...s, i: (s.i + d + s.items.length) % s.items.length } : s)),
+    [],
+  )
 
   const nav = useMemo(() => ([
     ['#concepto', t.nav.concept],
@@ -579,10 +582,15 @@ export default function App() {
           <div className="villas__grid">
             {t.villas.items.map((v, i) => (
               <R key={v.id} className="vcard" d={i * 110}>
-                <div className="vcard__img">
+                <button
+                  className="vcard__img"
+                  onClick={() => setLb({ items: v.gallery, i: 0 })}
+                  aria-label={`${v.n} · ${v.name} — ${v.gallery.length} ${t.villas.photos}`}
+                >
                   <img src={v.img} alt={v.name} loading="lazy" />
                   <span className={`vcard__tag${v.price ? ' vcard__tag--done' : ''}`}>{v.tag}</span>
-                </div>
+                  <span className="vcard__count">{v.gallery.length} {t.villas.photos}</span>
+                </button>
                 <div className="vcard__body">
                   <span className="vcard__n">{v.n}</span>
                   <h3 className="h3">{v.name}</h3>
@@ -616,7 +624,7 @@ export default function App() {
           </R>
           <div className="gal">
             {gal.map((g, i) => (
-              <button key={g.src} onClick={() => setLb(i)} aria-label={g.c}>
+              <button key={g.src} onClick={() => setLb({ items: gal, i })} aria-label={g.c}>
                 <img src={g.src} alt={g.c} loading="lazy" />
                 <span>{g.c}</span>
               </button>
@@ -827,7 +835,7 @@ export default function App() {
       </div>
 
       {/* ---------------- Overlays ---------------- */}
-      {lb >= 0 && <Lightbox items={gal} i={lb} onClose={() => setLb(-1)} onMove={moveLb} />}
+      {lb && <Lightbox items={lb.items} i={lb.i} onClose={() => setLb(null)} onMove={moveLb} />}
       {wizard && (
         <Wizard
           lang={lang}

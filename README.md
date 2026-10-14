@@ -57,7 +57,9 @@ Si cambian el embudo o la etapa, se editan las constantes al principio de `api/k
 | Todos los textos, ES y EN | `src/content.js` |
 | Secciones, formulario, galería | `src/App.jsx` |
 | Diseño (colores, tipografía, retícula) | `src/index.css` |
-| Renders y logo | `public/img/` |
+| Renders de la Villa I y logo | `public/img/` |
+| Renders de la Villa II | `public/img/villa2/` |
+| Renders de la Villa III | `public/img/villa3/` |
 | Dossier y planos descargables | `public/docs/` |
 | Vídeo de sobrevuelo | `public/video/` |
 | Integración con Kommo | `api/kommo.js` |
@@ -71,6 +73,8 @@ para las secciones claras (villa terminada y ubicación), sin duplicar reglas.
   idioma del navegador. El selector del header lo fija y lo recuerda.
 - Una vez enviado el formulario, el visitante queda desbloqueado (`localStorage`): si vuelve a
   pulsar cualquier CTA, va directo a las descargas sin repetir las preguntas.
+- Cada villa tiene su propia galería (`gallery` dentro de `villas.items`): la foto de la
+  tarjeta abre el visor con los renders de esa villa, nunca mezclados con los de otra.
 - Las animaciones de entrada respetan `prefers-reduced-motion`.
 - El vídeo solo se reproduce mientras está en pantalla; si el navegador bloquea el autoplay se
   ve el póster (render aéreo), nunca un hueco negro.
