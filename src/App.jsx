@@ -173,6 +173,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
 function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(startDone)
+  const [justSent, setJustSent] = useState(false)   // false = ya venía desbloqueado
   const [sending, setSending] = useState(false)
   const [err, setErr] = useState('')
   const [a, setA] = useState({ budget: '', location: '', timing: '', name: '', email: '', phone: '', consent: false })
@@ -240,6 +241,7 @@ function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
       })
       if (!res.ok) throw new Error('bad response')
       setDone(true)
+      setJustSent(true)
       onDone()
     } catch {
       setErr(t.wizard.errors.server)
@@ -277,8 +279,8 @@ function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
           <div className="wiz__body">
             <div className="done-screen">
               <div className="tick"><Ico.tick /></div>
-              <h3>{t.wizard.done.title}</h3>
-              <p>{t.wizard.done.text}</p>
+              <h3>{justSent ? t.wizard.done.title : t.wizard.done.backTitle}</h3>
+              <p>{justSent ? t.wizard.done.text : t.wizard.done.backText}</p>
               <div className="dl">
                 <a href={DOSSIER} download>
                   <Ico.doc /> {t.wizard.done.d1} <Ico.dl className="arr" />
@@ -290,9 +292,20 @@ function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
                   <Ico.doc /> {t.wizard.done.d3} <Ico.dl className="arr" />
                 </a>
               </div>
-              <button className="wiz__back" style={{ marginTop: '2rem' }} onClick={onClose}>
-                <Ico.arrowL /> {t.wizard.done.close}
-              </button>
+              {!justSent && (
+                <button
+                  className="btn btn--ghost btn--sm"
+                  style={{ marginTop: '1.6rem' }}
+                  onClick={() => { setDone(false); setStep(0); setErr('') }}
+                >
+                  {t.wizard.done.again}<Ico.arrow className="arr" />
+                </button>
+              )}
+              <div>
+                <button className="wiz__back" style={{ marginTop: '1.6rem' }} onClick={onClose}>
+                  <Ico.arrowL /> {t.wizard.done.close}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -442,7 +455,10 @@ export default function App() {
 
   useReveal([lang])
 
-  const open = useCallback((interest) => setWizard({ interest }), [])
+  // `fresh` marca las llamadas que expresan una consulta nueva (una villa
+  // concreta, pedir visita): abren el formulario aunque ya se haya enviado
+  // antes, en lugar de saltar directamente a las descargas.
+  const open = useCallback((interest, fresh = false) => setWizard({ interest, fresh }), [])
   const onDone = useCallback(() => { setUnlocked(true); store.set(UNLOCK_KEY, '1') }, [])
 
   const gal = t.gallery.items
@@ -552,7 +568,7 @@ export default function App() {
               <span>{t.finished.price} · {t.villas.items[0].name}</span>
             </div>
             <div style={{ marginTop: '2rem' }}>
-              <button className="btn" onClick={() => open('Visita villa terminada')}>
+              <button className="btn" onClick={() => open('Visita a la obra · Villa I', true)}>
                 {t.finished.cta}<Ico.arrow className="arr" />
               </button>
             </div>
@@ -604,7 +620,7 @@ export default function App() {
                     {v.price
                       ? <span className="vcard__price">{v.price}</span>
                       : <span className="vcard__price--locked"><Ico.lock />{t.villas.priceOnRequest}</span>}
-                    <button className="btn btn--sm btn--ghost" onClick={() => open(`${v.n} · ${v.name}`)}>
+                    <button className="btn btn--sm btn--ghost" onClick={() => open(`${v.n} · ${v.name}`, true)}>
                       {t.villas.cardCta}
                     </button>
                   </div>
@@ -841,7 +857,7 @@ export default function App() {
           lang={lang}
           t={t}
           interest={wizard.interest}
-          startDone={unlocked}
+          startDone={unlocked && !wizard.fresh}
           onClose={() => setWizard(null)}
           onDone={onDone}
         />
