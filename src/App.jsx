@@ -69,6 +69,24 @@ const DOSSIER = '/docs/luxury-golf-dossier.pdf'
 const PLANOS = '/docs/luxury-golf-planos.pdf'
 const MEMORIA = '/docs/luxury-golf-memoria-calidades.pdf'
 
+/** Evento de cliente potencial de Meta. `eventID` permite deduplicar si algún
+ *  día se añade la API de Conversiones en servidor. Nunca enviamos datos
+ *  personales: solo la cualificación, que no identifica a nadie. */
+function trackLead(data) {
+  const eventID = `lead.${Date.now()}.${Math.random().toString(36).slice(2, 10)}`
+  try {
+    window.fbq?.('track', 'Lead', {
+      content_name: 'Dossier Luxury Golf Collection',
+      content_category: data.interest,
+      presupuesto: data.budget,
+      horizonte: data.timing,
+      ubicacion: data.location,
+      idioma: data.lang,
+    }, { eventID })
+  } catch { /* bloqueador de anuncios: el lead ya está guardado en el CRM */ }
+  return eventID
+}
+
 const MAPS_Q = encodeURIComponent('La Cala Golf, Mijas Costa, Málaga')
 const MAPS_EMBED = `https://www.google.com/maps?q=${MAPS_Q}&z=13&output=embed`
 const MAPS_LINK = `https://www.google.com/maps/search/?api=1&query=${MAPS_Q}`
@@ -221,25 +239,28 @@ function Wizard({ lang, t, interest, startDone, onClose, onDone }) {
       .filter(Boolean)
       .join(' · ')
 
+    const payload = {
+      name: a.name.trim(),
+      email: a.email.trim(),
+      phone: a.phone,
+      budget: crmLabels.budget[a.budget] || '',
+      location: crmLabels.location[a.location] || '',
+      timing: crmLabels.timing[a.timing] || '',
+      interest: interest || 'Dossier general',
+      lang,
+      utm,
+      referrer: document.referrer || '',
+      page: window.location.href,
+    }
+
     try {
       const res = await fetch('/api/kommo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: a.name.trim(),
-          email: a.email.trim(),
-          phone: a.phone,
-          budget: crmLabels.budget[a.budget] || '',
-          location: crmLabels.location[a.location] || '',
-          timing: crmLabels.timing[a.timing] || '',
-          interest: interest || 'Dossier general',
-          lang,
-          utm,
-          referrer: document.referrer || '',
-          page: window.location.href,
-        }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error('bad response')
+      trackLead(payload)
       setDone(true)
       setJustSent(true)
       onDone()

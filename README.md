@@ -50,6 +50,29 @@ el mapeo está en `crmLabels`, al final de `src/content.js`.
 
 Si cambian el embudo o la etapa, se editan las constantes al principio de `api/kommo.js`.
 
+## Meta Pixel
+
+Píxel `1065074469914692`, con el código base en `index.html`. Dispara:
+
+- `PageView` en cada carga.
+- `Lead` cuando el formulario se envía **con éxito** (no al abrirlo ni si el
+  CRM falla), con la cualificación como parámetros: `presupuesto`, `horizonte`,
+  `ubicacion`, `idioma` y `content_category` con la villa o el botón de origen.
+
+Dos decisiones a tener en cuenta:
+
+- **En localhost no se carga el píxel.** Se sustituye por una función que solo
+  escribe en consola, para que las pruebas no ensucien los datos de Meta. Para
+  verificar de verdad, usar el entorno de preview de Vercel o producción.
+- **No se envían datos personales.** Nombre, email y teléfono no viajan a Meta.
+  Si en algún momento interesa mejorar la atribución, habría que activar la
+  concordancia avanzada, que sí los envía cifrados; es una decisión con
+  implicaciones de privacidad, no un simple ajuste técnico.
+
+Cada evento `Lead` lleva un `eventID` único, de modo que si más adelante se
+añade la API de Conversiones en servidor, Meta deduplicará sin contar el lead
+dos veces.
+
 ## Dónde tocar cada cosa
 
 | Qué | Dónde |
