@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'
 import { content, crmLabels } from './content.js'
+import { loadPixel, trackLead } from './pixel.js'
 
 /* ------------------------------------------------------------------ *
  * Iconos
@@ -69,28 +70,23 @@ const DOSSIER = '/docs/luxury-golf-dossier.pdf'
 const PLANOS = '/docs/luxury-golf-planos.pdf'
 const MEMORIA = '/docs/luxury-golf-memoria-calidades.pdf'
 
-/** Evento de cliente potencial de Meta. `eventID` permite deduplicar si algún
- *  día se añade la API de Conversiones en servidor. Nunca enviamos datos
- *  personales: solo la cualificación, que no identifica a nadie. */
-function trackLead(data) {
-  const eventID = `lead.${Date.now()}.${Math.random().toString(36).slice(2, 10)}`
-  try {
-    window.fbq?.('track', 'Lead', {
-      content_name: 'Dossier Luxury Golf Collection',
-      content_category: data.interest,
-      presupuesto: data.budget,
-      horizonte: data.timing,
-      ubicacion: data.location,
-      idioma: data.lang,
-    }, { eventID })
-  } catch { /* bloqueador de anuncios: el lead ya está guardado en el CRM */ }
-  return eventID
-}
-
 const MAPS_Q = encodeURIComponent('La Cala Golf, Mijas Costa, Málaga')
 const MAPS_EMBED = `https://www.google.com/maps?q=${MAPS_Q}&z=13&output=embed`
 const MAPS_LINK = `https://www.google.com/maps/search/?api=1&query=${MAPS_Q}`
 const UNLOCK_KEY = 'lg_unlocked_v1'
+const CONSENT_KEY = 'lg_consent_v1'
+
+/** null = aún no ha decidido; el banner solo aparece en ese caso. */
+function readConsent() {
+  try {
+    const raw = window.localStorage.getItem(CONSENT_KEY)
+    if (!raw) return null
+    const v = JSON.parse(raw)
+    return { marketing: !!v.marketing, maps: !!v.maps }
+  } catch {
+    return null
+  }
+}
 
 const store = {
   get(k) { try { return window.localStorage.getItem(k) } catch { return null } },
@@ -446,6 +442,89 @@ function Lightbox({ items, i, onClose, onMove }) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Consentimiento de cookies
+ * ------------------------------------------------------------------ */
+function ConsentBanner({ t, onAll, onNone, onPrefs }) {
+  return (
+    <div className="ck" role="dialog" aria-label={t.cookies.title}>
+      <div className="wrap ck__inner">
+        <div className="ck__txt">
+          <b>{t.cookies.title}</b>
+          <p>
+            {t.cookies.text}{' '}
+            <a href="https://alternativamalaga.com/politica-de-privacidad/" target="_blank" rel="noreferrer">
+              {t.cookies.policy}
+            </a>
+          </p>
+        </div>
+        <div className="ck__btns">
+          <button className="ck__link" onClick={onPrefs}>{t.cookies.prefs}</button>
+          <button className="btn btn--sm btn--ghost" onClick={onNone}>{t.cookies.reject}</button>
+          <button className="btn btn--sm" onClick={onAll}>{t.cookies.accept}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConsentPanel({ t, value, onSave, onClose }) {
+  const [v, setV] = useState(value || { marketing: false, maps: false })
+
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    document.body.classList.add('locked')
+    return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('locked') }
+  }, [onClose])
+
+  return (
+    <div className="wiz" role="dialog" aria-modal="true" aria-label={t.cookies.panelTitle}>
+      <div className="wiz__bg" onClick={onClose} />
+      <div className="wiz__panel">
+        <div className="wiz__head">
+          <small>{t.cookies.panelTitle}</small>
+          <button className="wiz__close" onClick={onClose} aria-label={t.wizard.close}><Ico.close /></button>
+        </div>
+        <div className="wiz__body">
+          <p className="ck__lead">{t.cookies.panelText}</p>
+          {t.cookies.groups.map((g) => {
+            const fixed = g.id === 'necessary'
+            return (
+              <label key={g.id} className={`ckg${fixed ? ' ckg--fixed' : ''}`}>
+                <span className="ckg__txt">
+                  <b>{g.t}</b>
+                  <small>{g.d}</small>
+                </span>
+                {fixed ? (
+                  <span className="ckg__always">{t.cookies.always}</span>
+                ) : (
+                  <span className="sw">
+                    <input
+                      type="checkbox"
+                      checked={!!v[g.id]}
+                      onChange={(e) => setV((p) => ({ ...p, [g.id]: e.target.checked }))}
+                    />
+                    <i />
+                  </span>
+                )}
+              </label>
+            )
+          })}
+          <div className="wiz__nav">
+            <button className="wiz__back" onClick={() => onSave({ marketing: false, maps: false })}>
+              {t.cookies.reject}
+            </button>
+            <button className="btn" onClick={() => onSave(v)}>
+              {t.cookies.save}<Ico.arrow className="arr" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ *
  * App
  * ------------------------------------------------------------------ */
 export default function App() {
@@ -456,6 +535,17 @@ export default function App() {
   const [stuck, setStuck] = useState(false)
   const [showSticky, setShowSticky] = useState(false)
   const videoRef = useVideoInView()
+  const [consent, setConsent] = useState(() => (typeof window === 'undefined' ? null : readConsent()))
+  const [prefsOpen, setPrefsOpen] = useState(false)
+
+  // El píxel solo se inyecta cuando hay consentimiento de marketing.
+  useEffect(() => { if (consent?.marketing) loadPixel() }, [consent])
+
+  const saveConsent = useCallback((v) => {
+    setConsent(v)
+    setPrefsOpen(false)
+    store.set(CONSENT_KEY, JSON.stringify({ ...v, ts: Date.now() }))
+  }, [])
 
   const t = content[lang]
 
@@ -747,13 +837,25 @@ export default function App() {
               </a>
             </div>
             <div className="map__frame">
-              <iframe
-                src={MAPS_EMBED}
-                title={t.location.map.t}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
+              {consent?.maps ? (
+                <iframe
+                  src={MAPS_EMBED}
+                  title={t.location.map.t}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="map__blocked">
+                  <p>{t.cookies.mapBlocked}</p>
+                  <button
+                    className="btn btn--sm"
+                    onClick={() => saveConsent({ marketing: !!consent?.marketing, maps: true })}
+                  >
+                    {t.cookies.mapLoad}<Ico.arrow className="arr" />
+                  </button>
+                </div>
+              )}
             </div>
           </R>
         </div>
@@ -857,6 +959,7 @@ export default function App() {
               <a href="https://alternativamalaga.com/aviso-legal/" target="_blank" rel="noreferrer">{t.footer.legal}</a>
               <a href="https://alternativamalaga.com/politica-de-privacidad/" target="_blank" rel="noreferrer">{t.footer.privacy}</a>
               <a href="https://alternativamalaga.com/politica-de-privacidad/" target="_blank" rel="noreferrer">{t.footer.cookies}</a>
+              <button className="ftr__btn" onClick={() => setPrefsOpen(true)}>{t.cookies.footerLink}</button>
             </div>
           </div>
           <p className="ftr__legal">{t.footer.disclaimer}</p>
@@ -872,6 +975,18 @@ export default function App() {
       </div>
 
       {/* ---------------- Overlays ---------------- */}
+      {consent === null && !prefsOpen && (
+        <ConsentBanner
+          t={t}
+          onAll={() => saveConsent({ marketing: true, maps: true })}
+          onNone={() => saveConsent({ marketing: false, maps: false })}
+          onPrefs={() => setPrefsOpen(true)}
+        />
+      )}
+      {prefsOpen && (
+        <ConsentPanel t={t} value={consent} onSave={saveConsent} onClose={() => setPrefsOpen(false)} />
+      )}
+
       {lb && <Lightbox items={lb.items} i={lb.i} onClose={() => setLb(null)} onMove={moveLb} />}
       {wizard && (
         <Wizard

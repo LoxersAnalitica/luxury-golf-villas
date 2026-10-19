@@ -50,9 +50,39 @@ el mapeo está en `crmLabels`, al final de `src/content.js`.
 
 Si cambian el embudo o la etapa, se editan las constantes al principio de `api/kommo.js`.
 
+## Consentimiento de cookies
+
+Nada de terceros se carga antes de que el visitante decida. El estado vive en
+`localStorage` bajo `lg_consent_v1`; mientras no haya decisión guardada
+(`null`) se muestra el banner.
+
+Dos categorías opcionales, además de las necesarias:
+
+| Categoría | Qué activa |
+|---|---|
+| `marketing` | Inyecta el Meta Pixel (`src/pixel.js`) y permite el evento `Lead` |
+| `maps` | Carga el iframe de Google Maps; si no, se ve la dirección y un enlace |
+
+Puntos a respetar si se toca esto:
+
+- **Aceptar y rechazar tienen el mismo peso visual.** No conviene degradar el
+  botón de rechazo: es justo lo que miran las autoridades de protección de datos.
+- El píxel se inyecta desde `loadPixel()`, nunca desde `index.html`. Si vuelve
+  al HTML, se cargaría antes del consentimiento y se pierde todo el sentido.
+- `trackLead()` comprueba que exista `window.fbq`: sin consentimiento no envía
+  nada, pero **el lead sí se guarda en el CRM**. Rechazar cookies nunca impide
+  solicitar el dossier.
+- El pie tiene un enlace *Preferencias de cookies* para cambiar la decisión,
+  que es obligatorio: el consentimiento debe poder retirarse igual de fácil.
+
+Queda fuera de este alcance el registro de consentimientos (guardar prueba de
+quién aceptó y cuándo). Si llega a hacer falta, habría que enviarlo a un
+servicio con sello de tiempo.
+
 ## Meta Pixel
 
-Píxel `1065074469914692`, con el código base en `index.html`. Dispara:
+Píxel `1065074469914692`, en `src/pixel.js`. **Solo se carga con consentimiento
+de marketing** (ver arriba). Dispara:
 
 - `PageView` en cada carga.
 - `Lead` cuando el formulario se envía **con éxito** (no al abrirlo ni si el
@@ -61,8 +91,8 @@ Píxel `1065074469914692`, con el código base en `index.html`. Dispara:
 
 Dos decisiones a tener en cuenta:
 
-- **En localhost no se carga el píxel.** Se sustituye por una función que solo
-  escribe en consola, para que las pruebas no ensucien los datos de Meta. Para
+- **En localhost no se contacta con Meta.** `loadPixel()` deja una función que
+  solo escribe en consola, para que las pruebas no ensucien los datos. Para
   verificar de verdad, usar el entorno de preview de Vercel o producción.
 - **No se envían datos personales.** Nombre, email y teléfono no viajan a Meta.
   Si en algún momento interesa mejorar la atribución, habría que activar la
